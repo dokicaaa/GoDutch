@@ -2,13 +2,20 @@
 
 ###
 
-<p align="left">A modern chat app with a minimal UI, featuring dark/light mode, profile uploading, image sharing, and more.</p>
+<p align="left"></p>
 
 ### The idea behind the App
 
-Sync was created with a focus on simplicity and functionality. The goal is to offer a chat experience that’s free from unnecessary features and clutter. Many apps today are packed with excessive features, making them harder to navigate and use. With Sync, I wanted to go in the opposite direction, building an app that’s minimalistic, intuitive, and user-friendly.
+###
 
-Every feature in Sync is designed to serve a purpose, making it easy for users to connect and share without being overwhelmed by options they don’t need. With essentials like dark/light mode, profile uploading, and image sharing and more, Sync provides a straightforward and enjoyable chat experience that users can rely on.
+ **GoDutch** is a native Android App which simplifies group payments, particularly in situations like splitting a restaurant bill. In many social settings, figuring out who owes what can be a cumbersome and time-consuming task. **GoDutch** aims to make this process seamless by leveraging **OCR (Optical Character Recognition) technology** to automatically scan and process the bill.
+
+With **GoDutch**, each user can:
+- **Scan the bill** quickly using OCR, which recognizes items and their prices.
+- **Select the items they ordered**, ensuring a fair split of the total.
+- **Calculate their share**, including tip, making it easy to determine how much each person needs to pay.
+
+**GoDutch** removes the hassle of manual calculations, providing a user-friendly way to manage group expenses accurately and efficiently. This app is designed to enhance social experiences by reducing the stress and confusion around bill-splitting, allowing users to focus on what matters – enjoying the moment.
 
 
 ###
@@ -20,8 +27,7 @@ Every feature in Sync is designed to serve a purpose, making it easy for users t
 - [Contact](#contact)
 
 ## Showcase
-<img src="mockup-2.png" alt="My Project Logo" style="border-radius: 15px;">
-<img src="sync-mockup.jpg" alt="My Project Logo" style="border-radius: 15px;">
+<img src="godutch-mockup_main.png" alt="My Project Logo" style="border-radius: 15px;">
 
 
 ## Technologies Used
@@ -29,20 +35,30 @@ Every feature in Sync is designed to serve a purpose, making it easy for users t
 ###
 
 <div align="left">
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flutter/flutter-original.svg" height="40" alt="flutter logo"  />
+  <!-- Android Studio -->
+  <a href="https://developer.android.com/studio" target="_blank" rel="noreferrer">
+    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/androidstudio/androidstudio-original.svg" height="40" alt="android studio logo" />
+  </a>
   <img width="12" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/dart/dart-original.svg" height="40" alt="dart logo"  />
+  
+  <!-- SQLite -->
+  <a href="https://www.sqlite.org/" target="_blank" rel="noreferrer">
+    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/sqlite/sqlite-original.svg" height="40" alt="sqlite logo" />
+  </a>
   <img width="12" />
-  <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/firebase/firebase-plain.svg" height="40" alt="firebase logo"  />
-  <img width="12" />
-  <a href="https://www.figma.com/" target="_blank" rel="noreferrer"> <img src="https://www.vectorlogo.zone/logos/figma/figma-icon.svg" alt="figma" width="40" height="40"/>
+  
+  <!-- Figma -->
+  <a href="https://www.figma.com/" target="_blank" rel="noreferrer">
+    <img src="https://www.vectorlogo.zone/logos/figma/figma-icon.svg" alt="figma" width="40" height="40"/>
+  </a>
 </div>
+
 
 ###
 
-- **Framework**: [Flutter](https://flutter.dev/) – For building the cross-platform UI of the app with a modern and minimal design.
-- **Design Tool**: [Figma](https://www.figma.com/) – For prototyping and designing the front-end UI components.
-- **Backend Services**: [Firebase](https://firebase.google.com/) – For handling user authentication, real-time database management, cloud storage for profile images and shared content, and push notifications.
+- **Language**: [Android Studio](https://developer.android.com/studio) with Java – For building the native Android app with a focus on performance and platform-specific features.
+- **Database**: [SQLite](https://www.sqlite.org/) – For managing local data storage efficiently within the app, allowing for offline access and fast data retrieval.
+- **Design Tool**: [Figma](https://www.figma.com/) – For prototyping and designing the UI components with a modern and user-friendly layout.
 
 ###
 
