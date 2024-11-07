@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">GoDutch</string>
+    <string name="made_simpler">made simpler</string>
+    <string name="dinning">Dinning,</string>
+    <string name="scan">Scan</string>
+    <string name="items">Items</string>
+    <string name="select_tip_percentage">Select tip percentage</string>
+    <string name="_0">0%</string>
+    <string name="rescan">Rescan</string>
+    <string name="godutch">GoDutch</string>
+    <string name="default_item_valiue">0.0</string>
+</resources>

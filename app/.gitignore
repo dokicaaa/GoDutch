@@ -1,0 +1,81 @@
+# Gradle files
+.gradle/
+build/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# Log files
+*.log
+
+# Android Studio specific
+.idea/
+*.iml
+
+# Keystore files (Do not include if you use version control for distribution)
+*.jks
+*.keystore
+
+# Generated files
+bin/
+gen/
+out/
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Built application files
+*.apk
+*.ap_
+*.aab
+
+# Proguard files
+proguard/
+
+# Crashlytics and Fabric
+crashlytics.properties
+fabric.properties
+
+# Google Services JSON file (useful for API keys)
+google-services.json
+# NDK
+.obj/
+*.so
+
+# Eclipse project files (if the project was imported from Eclipse)
+.classpath
+.project
+
+# Windows related files
+Thumbs.db
+
+# Temporary files
+*.swp
+*.tmp
+*.temp
+
+# Android lint
+lint/intermediates/
+lint/generated/
+
+# Build output
+/build/
+
+# Miscellaneous
+# User-specific files or configuration files like environment variable settings or IDE preferences should not be tracked.
+.env
+app/keys.properties
+app/build.gradle
+FoodItem.db
+
+*.gradle
+
+app/build/
+
+keys.properties
+
+# Backup and Dataset
+BackUP/
+app/dataset/
+
+
