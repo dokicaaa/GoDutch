@@ -8,14 +8,15 @@
 
 ###
 
- **GoDutch** is a native Android App which simplifies group payments, particularly in situations like splitting a restaurant bill. In many social settings, figuring out who owes what can be a cumbersome and time-consuming task. **GoDutch** aims to make this process seamless by leveraging **OCR (Optical Character Recognition) technology** to automatically scan and process the bill.
+ **GoDutch** is a native Android app that makes group payments simple, especially when splitting a restaurant bill. Instead of figuring out who owes what, **GoDutch** uses **OCR (Optical Character Recognition)** to quickly scan and process the bill.
 
-With **GoDutch**, each user can:
-- **Scan the bill** quickly using OCR, which recognizes items and their prices.
-- **Select the items they ordered**, ensuring a fair split of the total.
-- **Calculate their share**, including tip, making it easy to determine how much each person needs to pay.
+With **GoDutch**, you can:
+- **Scan the bill** to recognize items and prices.
+- **Select your items** for a fair split.
+- **Calculate your share** with the tip included.
 
-**GoDutch** removes the hassle of manual calculations, providing a user-friendly way to manage group expenses accurately and efficiently. This app is designed to enhance social experiences by reducing the stress and confusion around bill-splitting, allowing users to focus on what matters – enjoying the moment.
+This app takes away the hassle of manual calculations, making it easy and quick to manage shared expenses. **GoDutch** helps you enjoy your time with friends, worry-free.
+
 
 
 ###
