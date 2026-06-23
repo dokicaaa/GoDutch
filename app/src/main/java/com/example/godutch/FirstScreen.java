@@ -9,6 +9,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
 
@@ -28,7 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FirstScreen extends AppCompatActivity {
-    ImageView btnScan;
+    Button btnScan;
     String[] permissions = new String[]{Manifest.permission.CAMERA, Manifest.permission.POST_NOTIFICATIONS};
     String[] permissionNotif = new String[]{Manifest.permission.POST_NOTIFICATIONS};
     @RequiresApi(api = Build.VERSION_CODES.M)
@@ -45,6 +46,8 @@ public class FirstScreen extends AppCompatActivity {
                ActivityCompat.requestPermissions(FirstScreen.this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
            }
         }
+
+        btnScan = findViewById(R.id.imgBtnScan);
 
         //Scan activation
         btnScan.setOnClickListener(new View.OnClickListener() {

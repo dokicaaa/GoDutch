@@ -25,6 +25,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -32,6 +33,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.net.Uri;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.util.TypedValue;
@@ -42,23 +45,15 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 
-import it.xabaras.android.recyclerview.swipedecorator.RecyclerViewSwipeDecorator;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.ResponseBody;
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
+import androidx.core.content.FileProvider;
 
+import it.xabaras.android.recyclerview.swipedecorator.RecyclerViewSwipeDecorator;
 
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.example.godutch.ReceiptOcrProcessor.OcrCallback;
 
 
 import com.google.android.gms.ads.AdError;
@@ -72,14 +67,13 @@ import com.google.android.gms.ads.interstitial.InterstitialAd;
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 import com.google.android.material.snackbar.Snackbar;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 
 public class SecondScreen extends AppCompatActivity {
 
@@ -102,7 +96,7 @@ public class SecondScreen extends AppCompatActivity {
 
 
     //DB
-    MyDataBaseHelper myDB = new MyDataBaseHelper(SecondScreen.this);
+    MyDataBaseHelper myDB;
 
 
     //PopUp initializations
@@ -118,6 +112,10 @@ public class SecondScreen extends AppCompatActivity {
 
     private InterstitialAd mInterstitialAd;
 
+    private ReceiptOcrProcessor receiptOcrProcessor;
+    private android.app.ProgressDialog progressDialog;
+    private String currentPhotoPath;
+
 
 
     @Override
@@ -132,6 +130,7 @@ public class SecondScreen extends AppCompatActivity {
         btnAddItem = findViewById(R.id.btnAddItem);
         recyclerView = findViewById(R.id.recycleView);
         vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        receiptOcrProcessor = new ReceiptOcrProcessor();
 //        txtRes = findViewById(R.id.txtRes);
 
         //Calling from adapter
@@ -423,10 +422,17 @@ public class SecondScreen extends AppCompatActivity {
     ActivityResultLauncher<Intent> startActivityForResult = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
                 if (result.getResultCode() == RESULT_OK) {
-                    Log.i("Camera Permissions", "Camera Permissions Granted");
+                    Log.i("Camera", "Photo captured successfully, path: " + currentPhotoPath);
+                    if (currentPhotoPath != null) {
+                        Bitmap imageBitmap = BitmapFactory.decodeFile(currentPhotoPath);
+                        Log.i("Camera", "Bitmap loaded: " + (imageBitmap != null ? imageBitmap.getWidth() + "x" + imageBitmap.getHeight() : "null"));
+                        processReceiptImage(imageBitmap);
+                    } else {
+                        Log.w("Camera", "currentPhotoPath is null");
+                        Toast.makeText(SecondScreen.this, "Failed to get photo path", Toast.LENGTH_SHORT).show();
+                    }
                 } else {
-                    Log.i("Camera Permissions", "Camera Permissions Denied");
-
+                    Log.i("Camera", "Camera cancelled or failed");
                 }
             }
     );
@@ -542,18 +548,83 @@ public class SecondScreen extends AppCompatActivity {
     }
 
     //Camera Intent
+    private File createImageFile() throws IOException {
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(imageFileName, ".jpg", storageDir);
+        currentPhotoPath = image.getAbsolutePath();
+        return image;
+    }
+
     public void captureImage() {
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        startActivityForResult.launch(intent);
+        if (intent.resolveActivity(getPackageManager()) != null) {
+            File photoFile = null;
+            try {
+                photoFile = createImageFile();
+            } catch (IOException e) {
+                Log.e(TAG, "Error creating image file", e);
+                Toast.makeText(this, "Failed to create image file", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (photoFile != null) {
+                Uri photoUri = FileProvider.getUriForFile(this,
+                        "com.example.apitest.fileprovider", photoFile);
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+                startActivityForResult.launch(intent);
+            }
+        }
     }
 
     //Save the image as a BitMap
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK && requestCode == REQUEST_IMAGE_CAPTURE) {
-            Bitmap imageBitmap = (Bitmap) data.getExtras().get("data");
+    private void processReceiptImage(Bitmap imageBitmap) {
+        if (imageBitmap == null) {
+            Toast.makeText(this, "Failed to capture image", Toast.LENGTH_SHORT).show();
+            return;
         }
+
+        progressDialog = new android.app.ProgressDialog(this);
+        progressDialog.setMessage("Scanning receipt...");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        receiptOcrProcessor.processBitmap(imageBitmap, new OcrCallback() {
+            @Override
+            public void onSuccess(String rawText) {
+                runOnUiThread(() -> {
+                    progressDialog.dismiss();
+                    if (rawText.trim().isEmpty()) {
+                        Toast.makeText(SecondScreen.this, "No text detected. Try again.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+
+                    ArrayList<FoodItem> parsedItems = ReceiptParser.parse(rawText);
+
+                    if (parsedItems.isEmpty()) {
+                        Toast.makeText(SecondScreen.this, "Could not find items on receipt. Add them manually.", Toast.LENGTH_LONG).show();
+                    } else {
+                        myDB.clearTable();
+                        for (FoodItem item : parsedItems) {
+                            myDB.addFood(item.getName(), String.valueOf(item.getPrice()));
+                        }
+                        storeDataInArrays();
+                        recyclerView.setAdapter(customAdapater);
+                        calculateTotalPrice();
+                        updateTotalPrice(totalPrice);
+                        Toast.makeText(SecondScreen.this, "Found " + parsedItems.size() + " items", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                runOnUiThread(() -> {
+                    progressDialog.dismiss();
+                    Toast.makeText(SecondScreen.this, "OCR failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
     public void interstitialAdd(){
