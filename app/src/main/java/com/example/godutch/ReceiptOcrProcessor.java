@@ -13,7 +13,7 @@ public class ReceiptOcrProcessor {
     private static final String TAG = "ReceiptOcrProcessor";
 
     public interface OcrCallback {
-        void onSuccess(String rawText);
+        void onSuccess(Text visionText);
         void onFailure(Exception e);
     }
 
@@ -27,7 +27,12 @@ public class ReceiptOcrProcessor {
         Log.d(TAG, "Processing bitmap: " + bitmap.getWidth() + "x" + bitmap.getHeight()
                 + " config=" + bitmap.getConfig());
 
-        InputImage image = InputImage.fromBitmap(bitmap, 0);
+        Bitmap preprocessed = ImagePreprocessor.preprocess(bitmap);
+        if (preprocessed == null) {
+            preprocessed = bitmap;
+        }
+
+        InputImage image = InputImage.fromBitmap(preprocessed, 0);
 
         TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
                 .process(image)
@@ -37,16 +42,20 @@ public class ReceiptOcrProcessor {
                     Log.d(TAG, fullText);
                     Log.d(TAG, "=== OCR RAW TEXT END ===");
                     Log.d(TAG, "OCR completed. Text length: " + fullText.length()
-                            + ", lines: " + visionText.getTextBlocks().size());
+                            + ", blocks: " + visionText.getTextBlocks().size());
 
                     for (Text.TextBlock block : visionText.getTextBlocks()) {
                         Log.d(TAG, "Block: " + block.getText());
                         for (Text.Line line : block.getLines()) {
                             Log.d(TAG, "  Line: " + line.getText());
+                            for (Text.Element element : line.getElements()) {
+                                Log.d(TAG, "    Element: " + element.getText()
+                                        + " bbox=" + element.getBoundingBox());
+                            }
                         }
                     }
 
-                    callback.onSuccess(fullText);
+                    callback.onSuccess(visionText);
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "OCR failed: " + e.getMessage(), e);

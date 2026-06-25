@@ -15,14 +15,13 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-
-import android.app.AlarmManager;
+import android.Manifest;
 import android.app.Dialog;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -41,7 +40,6 @@ import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-
 import android.widget.Button;
 import android.widget.EditText;
 
@@ -54,18 +52,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.godutch.ReceiptOcrProcessor.OcrCallback;
-
-
-import com.google.android.gms.ads.AdError;
-import com.google.android.gms.ads.AdRequest;
-import com.google.android.gms.ads.FullScreenContentCallback;
-import com.google.android.gms.ads.LoadAdError;
-import com.google.android.gms.ads.MobileAds;
-import com.google.android.gms.ads.initialization.InitializationStatus;
-import com.google.android.gms.ads.initialization.OnInitializationCompleteListener;
-import com.google.android.gms.ads.interstitial.InterstitialAd;
-import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.mlkit.vision.text.Text;
 
 import java.io.File;
 import java.io.IOException;
@@ -77,27 +65,20 @@ import java.util.Date;
 
 public class SecondScreen extends AppCompatActivity {
 
-
-    private static final int REQUEST_IMAGE_CAPTURE = 1;
-
     //Initializations of UI elements
     TextView txtSeekBarPercent;
-//    TextView txtRes;
     SeekBar seekBarTipPercent;
     Button btnRescan;
     Button btnAddItem;
     Vibrator vibrator;
 
     //Adapter initializations
-//    ArrayList<String> foodID, foodName, foodPrice;
     ArrayList<FoodItem> foodItems;
     CustomAdapater customAdapater;
     RecyclerView recyclerView;
 
-
     //DB
     MyDataBaseHelper myDB;
-
 
     //PopUp initializations
     EditText edtFoodName;
@@ -110,8 +91,6 @@ public class SecondScreen extends AppCompatActivity {
     private final DecimalFormat decimalFormat = new DecimalFormat("0.00");
     private double totalPrice;
 
-    private InterstitialAd mInterstitialAd;
-
     private ReceiptOcrProcessor receiptOcrProcessor;
     private android.app.ProgressDialog progressDialog;
     private String currentPhotoPath;
@@ -122,6 +101,10 @@ public class SecondScreen extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.second_screen);
+
+        if (savedInstanceState != null) {
+            currentPhotoPath = savedInstanceState.getString("currentPhotoPath");
+        }
 
         //Declarations'
         txtSeekBarPercent = findViewById(R.id.txtSeekBarProcent);
@@ -140,15 +123,7 @@ public class SecondScreen extends AppCompatActivity {
         foodItems = new ArrayList<>();
 
         //Camera Function
-        captureImage();
-
-//        scheduleNotification();
-
-        MobileAds.initialize(this, new OnInitializationCompleteListener() {
-            @Override
-            public void onInitializationComplete(InitializationStatus initializationStatus) {
-            }
-        });
+        launchCamera();
 
         //Slider for tip percentage
         seekBarTipPercent.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -178,12 +153,7 @@ public class SecondScreen extends AppCompatActivity {
         });
 
         //Button for rescan image
-        btnRescan.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                loadAd();
-            }
-        });
+        btnRescan.setOnClickListener(v -> launchCamera());
 
         //Button for adding items
         btnAddItem.setOnClickListener(v -> popUp());
@@ -421,21 +391,50 @@ public class SecondScreen extends AppCompatActivity {
     //Camera Permissions
     ActivityResultLauncher<Intent> startActivityForResult = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> {
-                if (result.getResultCode() == RESULT_OK) {
-                    Log.i("Camera", "Photo captured successfully, path: " + currentPhotoPath);
-                    if (currentPhotoPath != null) {
-                        Bitmap imageBitmap = BitmapFactory.decodeFile(currentPhotoPath);
-                        Log.i("Camera", "Bitmap loaded: " + (imageBitmap != null ? imageBitmap.getWidth() + "x" + imageBitmap.getHeight() : "null"));
-                        processReceiptImage(imageBitmap);
-                    } else {
-                        Log.w("Camera", "currentPhotoPath is null");
-                        Toast.makeText(SecondScreen.this, "Failed to get photo path", Toast.LENGTH_SHORT).show();
-                    }
-                } else {
-                    Log.i("Camera", "Camera cancelled or failed");
+                Log.i("Camera", "Result code: " + result.getResultCode() + ", currentPhotoPath: " + currentPhotoPath);
+
+                if (currentPhotoPath == null) {
+                    Log.e("Camera", "currentPhotoPath is null - activity was recreated");
+                    Toast.makeText(SecondScreen.this, "Failed to get photo path. Please try again.", Toast.LENGTH_SHORT).show();
+                    return;
                 }
+
+                File photoFile = new File(currentPhotoPath);
+                if (!photoFile.exists() || photoFile.length() == 0) {
+                    Log.e("Camera", "Photo file does not exist or is empty: " + currentPhotoPath);
+                    Toast.makeText(SecondScreen.this, "Failed to capture image. Please try again.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                Bitmap imageBitmap = loadDownsampledBitmap(currentPhotoPath);
+                if (imageBitmap == null) {
+                    Log.e("Camera", "Failed to decode bitmap from: " + currentPhotoPath);
+                    Toast.makeText(SecondScreen.this, "Failed to process image. Please try again.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                Log.i("Camera", "Bitmap loaded: " + imageBitmap.getWidth() + "x" + imageBitmap.getHeight());
+                processReceiptImage(imageBitmap);
             }
     );
+
+    private Bitmap loadDownsampledBitmap(String path) {
+        BitmapFactory.Options opts = new BitmapFactory.Options();
+        opts.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(path, opts);
+
+        int width = opts.outWidth;
+        int height = opts.outHeight;
+        int sampleSize = 1;
+        int maxDim = 1600;
+        while (width / sampleSize > maxDim || height / sampleSize > maxDim) {
+            sampleSize *= 2;
+        }
+
+        opts = new BitmapFactory.Options();
+        opts.inSampleSize = sampleSize;
+        return BitmapFactory.decodeFile(path, opts);
+    }
 
 
     //Vibration for seekbar
@@ -558,22 +557,27 @@ public class SecondScreen extends AppCompatActivity {
     }
 
     public void captureImage() {
+        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) {
+            Toast.makeText(this, "No camera available on this device", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (intent.resolveActivity(getPackageManager()) != null) {
-            File photoFile = null;
-            try {
-                photoFile = createImageFile();
-            } catch (IOException e) {
-                Log.e(TAG, "Error creating image file", e);
-                Toast.makeText(this, "Failed to create image file", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            if (photoFile != null) {
-                Uri photoUri = FileProvider.getUriForFile(this,
-                        "com.example.apitest.fileprovider", photoFile);
-                intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
-                startActivityForResult.launch(intent);
-            }
+        File photoFile = null;
+        try {
+            photoFile = createImageFile();
+        } catch (IOException e) {
+            Log.e(TAG, "Error creating image file", e);
+            Toast.makeText(this, "Failed to create image file", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (photoFile != null) {
+            Uri photoUri = FileProvider.getUriForFile(this,
+                    "com.example.apitest.fileprovider", photoFile);
+            intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+            intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivityForResult.launch(intent);
         }
     }
 
@@ -591,15 +595,16 @@ public class SecondScreen extends AppCompatActivity {
 
         receiptOcrProcessor.processBitmap(imageBitmap, new OcrCallback() {
             @Override
-            public void onSuccess(String rawText) {
+            public void onSuccess(Text visionText) {
                 runOnUiThread(() -> {
                     progressDialog.dismiss();
-                    if (rawText.trim().isEmpty()) {
+                    String rawText = visionText.getText();
+                    if (rawText == null || rawText.trim().isEmpty()) {
                         Toast.makeText(SecondScreen.this, "No text detected. Try again.", Toast.LENGTH_LONG).show();
                         return;
                     }
 
-                    ArrayList<FoodItem> parsedItems = ReceiptParser.parse(rawText);
+                    ArrayList<FoodItem> parsedItems = ReceiptParser.parse(visionText);
 
                     if (parsedItems.isEmpty()) {
                         Toast.makeText(SecondScreen.this, "Could not find items on receipt. Add them manually.", Toast.LENGTH_LONG).show();
@@ -627,110 +632,21 @@ public class SecondScreen extends AppCompatActivity {
         });
     }
 
-    public void interstitialAdd(){
-        AdRequest adRequest = new AdRequest.Builder().build();
-
-        InterstitialAd.load(this,"ca-app-pub-3940256099942544~3347511713", adRequest,
-                new InterstitialAdLoadCallback() {
-                    @Override
-                    public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
-                        mInterstitialAd = interstitialAd;
-                        Log.i(TAG, "onAdLoaded");
-                    }
-
-                    @Override
-                    public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
-                        mInterstitialAd = null;
-                        Log.e("TAG", "onAdFailedToLoad: " + loadAdError.getMessage());
-                    }
-                });
-
-    }
-
-    public void loadAd(){
-
-        AdRequest adRequest = new AdRequest.Builder().build();
-
-        InterstitialAd.load(this,"ca-app-pub-3940256099942544/1033173712", adRequest,
-                new InterstitialAdLoadCallback() {
-                    @Override
-                    public void onAdLoaded(@NonNull InterstitialAd interstitialAd) {
-
-//                        Toast.makeText(SecondScreen.this,"Ad Loaded", Toast.LENGTH_SHORT).show();
-                        interstitialAd.show(SecondScreen.this);
-                        interstitialAd.setFullScreenContentCallback(new FullScreenContentCallback() {
-                            @Override
-                            public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
-                                super.onAdFailedToShowFullScreenContent(adError);
-//                                Toast.makeText(SecondScreen.this, "Faild to show Ad", Toast.LENGTH_SHORT).show();
-                            }
-
-                            @Override
-                            public void onAdShowedFullScreenContent() {
-                                super.onAdShowedFullScreenContent();
-//                                Toast.makeText(SecondScreen.this,"Ad Shown Successfully",Toast.LENGTH_SHORT).show();
-                            }
-
-                            @Override
-                            public void onAdDismissedFullScreenContent() {
-                                super.onAdDismissedFullScreenContent();
-
-                                //Launches the camera when dismissing the ad
-                                captureImage();
-
-//                                Toast.makeText(SecondScreen.this,"Ad Dismissed / Closed",Toast.LENGTH_SHORT).show();
-                            }
-
-                            @Override
-                            public void onAdImpression() {
-                                super.onAdImpression();
-//                                Toast.makeText(SecondScreen.this,"Ad Impression Count",Toast.LENGTH_SHORT).show();
-                            }
-
-                            @Override
-                            public void onAdClicked() {
-                                super.onAdClicked();
-//                                Toast.makeText(SecondScreen.this,"Ad Clicked",Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
-                        Toast.makeText(SecondScreen.this,"Failed to Load Ad because="+loadAdError.getMessage(),Toast.LENGTH_SHORT).show();
-                    }
-                });
-
-    }
-
-    public void showInterstitialAdd() {
-        if (mInterstitialAd != null) {
-            mInterstitialAd.setFullScreenContentCallback(new FullScreenContentCallback() {
-                @Override
-                public void onAdDismissedFullScreenContent() {
-                    // Ad dismissed callback
-                    Log.d("TAG", "The ad was dismissed.");
-                    captureImage(); // Capture the image after ad is dismissed
-                }
-
-                @Override
-                public void onAdFailedToShowFullScreenContent(AdError adError) {
-                    // Ad failed to show callback
-                    Log.d("TAG", "The ad failed to show.");
-                }
-
-                @Override
-                public void onAdShowedFullScreenContent() {
-                    // Ad showed callback
-                    mInterstitialAd = null;
-                    Log.d("TAG", "The ad was shown.");
+    private final ActivityResultLauncher<String> requestCameraPermission =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                if (isGranted) {
+                    captureImage();
+                } else {
+                    Toast.makeText(this, "Camera permission is required to scan receipts", Toast.LENGTH_LONG).show();
                 }
             });
 
-            mInterstitialAd.show(SecondScreen.this);
+    private void launchCamera() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                == PackageManager.PERMISSION_GRANTED) {
+            captureImage();
         } else {
-            Log.d("TAG", "The interstitial ad wasn't ready yet.");
-            captureImage(); // Fallback to capture image if ad isn't ready
+            requestCameraPermission.launch(Manifest.permission.CAMERA);
         }
     }
 
@@ -739,6 +655,14 @@ public class SecondScreen extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         myDB.clearTable();
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (currentPhotoPath != null) {
+            outState.putString("currentPhotoPath", currentPhotoPath);
+        }
     }
 }
 
